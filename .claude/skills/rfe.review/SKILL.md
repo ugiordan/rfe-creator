@@ -2,7 +2,7 @@
 name: rfe.review
 description: Review and improve RFEs. Accepts a Jira key (e.g., /rfe.review RHAIRFE-1234) to fetch and review an existing RFE, or reviews local artifacts from /rfe.create. Runs rubric scoring, technical feasibility checks, and auto-revises issues it finds.
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Skill, AskUserQuestion, mcp__atlassian__jira_get_issue
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Skill, AskUserQuestion, mcp__atlassian__getJiraIssue
 ---
 
 You are an RFE review orchestrator. Your job is to review RFEs for quality and technical feasibility, and auto-revise issues when possible.
@@ -11,7 +11,15 @@ You are an RFE review orchestrator. Your job is to review RFEs for quality and t
 
 Check if `$ARGUMENTS` contains a Jira key (e.g., `RHAIRFE-1234`).
 
-**If a Jira key is provided**: Fetch the RFE from Jira using `mcp__atlassian__getJiraIssue` with `fields: ["comment"]` to get both the description and comment history. Write the RFE to `artifacts/rfe-tasks/` as a local artifact using the RFE template format (read `${CLAUDE_SKILL_DIR}/../rfe.create/rfe-template.md` for the format). Update `artifacts/rfes.md` with the RFE summary. Record the Jira key in the artifact metadata so `/rfe.submit` knows to update rather than create.
+**If a Jira key is provided**: Fetch the RFE from Jira. Try `mcp__atlassian__getJiraIssue` first. If the MCP tool is unavailable, fall back to the REST API script:
+
+```bash
+python3 scripts/fetch_issue.py RHAIRFE-1234 --fields summary,description,priority,labels,status,comment --markdown
+```
+
+The script outputs JSON to stdout with description and comment bodies already converted to markdown. Parse `fields.description`, `fields.summary`, `fields.priority.name`, and `comments` array.
+
+Write the RFE to `artifacts/rfe-tasks/` as a local artifact using the RFE template format (read `${CLAUDE_SKILL_DIR}/../rfe.create/rfe-template.md` for the format). Update `artifacts/rfes.md` with the RFE summary. Record the Jira key in the artifact metadata so `/rfe.submit` knows to update rather than create.
 
 **Also write a separate comments file** to `artifacts/rfe-tasks/RFE-NNN-comments.md` with the Jira comment history. Format each comment as:
 
@@ -157,7 +165,7 @@ This file must NOT be merged back into the RFE description.
    - **WHY**: Strengthen with available evidence (stakeholder comments, strategic alignment references); flag gaps the author must fill (named customers, revenue data)
    - **Right-sized**: Report the recommendation only; do not split or remove scope. Advise the user to run `/rfe.split` if splitting is needed
    - **WHAT / Not a task**: Follow assessor guidance if provided
-4. Add a `### Revision Notes` section at the end of each revised RFE documenting what changed and what gaps remain for the user to fill
+4. Add a `### Revision Notes` section at the end of each RFE **only if its content was actually changed** (sections rewritten, reframed, or removed). The Revision Notes should document what changed and why. Do NOT add Revision Notes to artifacts where no content was modified — gaps that require author input (e.g., missing named customers) belong only in the review report, not in the artifact. This distinction matters because the submit script uses the presence of Revision Notes to apply the `rfe-creator-auto-revised` label.
 5. Re-run the review (go back to Step 2) on the revised artifacts
 
 **Revision limits**:

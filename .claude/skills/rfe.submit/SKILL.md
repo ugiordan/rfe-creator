@@ -2,97 +2,79 @@
 name: rfe.submit
 description: Submit or update RFEs in Jira. Creates new RHAIRFE tickets for new RFEs, or updates existing tickets for RFEs fetched from Jira. Use after /rfe.review.
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, mcp__atlassian__jira_create_issue, mcp__atlassian__jira_search, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_edit_issue, mcp__atlassian__addCommentToJiraIssue
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 You are an RFE submission assistant. Your job is to create or update RHAIRFE Jira tickets from reviewed RFE artifacts.
 
-## Step 1: Verify Review
+All submission goes through Python scripts that use the Jira REST API directly with Basic Auth (`JIRA_SERVER`, `JIRA_USER`, `JIRA_TOKEN` env vars), not the Atlassian MCP server. This ensures the exact sequence of Jira API calls is deterministic and not dependent on LLM tool-calling decisions.
 
-Read `artifacts/rfe-review-report.md`. If no review report exists, tell the user to run `/rfe.review` first and stop.
+**This skill is non-interactive.** Do not prompt the user for confirmation before submitting. The user invoked `/rfe.submit` — that is the confirmation. Run the script directly without asking "are you sure?" or presenting a dry run for approval.
 
-Check the review results. If any RFEs have a "revise" or "reject" recommendation, warn the user and ask if they want to proceed anyway.
+## Step 0: Check Credentials
 
-## Step 2: Read RFE Artifacts
+Check if `JIRA_SERVER`, `JIRA_USER`, and `JIRA_TOKEN` environment variables are set. If not, tell the user:
 
-Read `artifacts/rfes.md` and all RFE files in `artifacts/rfe-tasks/`. Skip the following file types — they are review artifacts, not RFE content:
-- `*-comments.md` — Jira comment history used during review
-- `*-removed-context.md` — technical content removed during review, to be posted as a Jira comment (see Step 4)
+> RFE submission requires Jira API credentials. Set these environment variables:
+> ```
+> export JIRA_SERVER=https://your-site.atlassian.net
+> export JIRA_USER=your-email@example.com
+> export JIRA_TOKEN=your-api-token
+> ```
+> To create an API token, go to https://id.atlassian.com/manage-profile/security/api-tokens
+>
+> After environment variables are set, re-run `/rfe.submit`.
 
-## Step 3: Confirm with User
+## Step 1: Detect Mode and Run
 
-Before creating tickets, present a summary table:
+Read `artifacts/rfes.md`. Determine whether this is a split submission or standard submission.
 
-```
-| # | Title | Priority | Size | Status |
-|---|-------|----------|------|--------|
-| RFE-001 | ... | Normal | M | Ready |
-| RFE-002 | ... | Critical | L | Ready |
-```
+### Split Submission
 
-Ask the user to confirm before proceeding. They may want to adjust priority or exclude specific RFEs.
+If any RFE has an "Archived" status containing "split", run:
 
-## Step 4: Create or Update Jira Tickets
-
-For each confirmed RFE, check if the artifact contains a Jira key (e.g., `**Jira Key**: RHAIRFE-1234`). This indicates the RFE was fetched from Jira and should be **updated**, not created.
-
-### Jira Field Mapping
-
-```
-Project:     RHAIRFE
-Issue Type:  Feature Request
-Summary:     <RFE title>
-Description: <Full RFE content in Jira markdown format>
-Priority:    <RFE priority by name: Blocker, Critical, Major, Normal, or Minor>
-Labels:      <From RFE if specified>
+```bash
+python3 scripts/split_submit.py <PARENT_KEY> [--dry-run] [--artifacts-dir artifacts]
 ```
 
-### If Jira MCP Is Available
+The split submit script handles:
+- Persisting child RFE content as comments on the parent (durable backup)
+- Creating child tickets with proper "Issue split" linking to the parent
+- Closing the parent ticket as Obsolete
+- Idempotent recovery if interrupted
 
-**For new RFEs** (no existing Jira key): Use `mcp__atlassian__jira_create_issue` to create each ticket. After creation, record the Jira key.
+### Standard Submission
 
-**For existing RFEs** (has a Jira key): Use `mcp__atlassian__jira_edit_issue` to update the existing ticket's Summary and Description only. Do not change Priority, Labels, or other fields unless the user explicitly asks — those were set intentionally by the original author.
+Otherwise, run:
 
-**Before submitting**, strip the following from the description content:
-- `### Revision Notes` sections (internal review tracking)
-- `> *Review note: ...` blockquotes (review annotations on author context sections)
-- `<!-- REVISION NOTE: ... -->` HTML comments
-- Any artifact metadata lines (`**Jira Key**:`, `**Size**:`, `**Status**:`) — these are local artifact fields, not Jira description content
-
-**After updating the description**, check for a corresponding `artifacts/rfe-tasks/RFE-NNN-removed-context.md` file. If one exists, post its contents as a Jira comment using `mcp__atlassian__addCommentToJiraIssue`. The file already contains the prefixed message — post it verbatim.
-
-### If Jira MCP Is NOT Available
-
-Generate a formatted submission guide with the exact field values for manual entry:
-
-```markdown
-## Manual Jira Submission Guide
-
-### RFE-001: <title>
-- **Action**: <Create new / Update RHAIRFE-NNNN>
-- **Project**: RHAIRFE
-- **Issue Type**: Feature Request
-- **Summary**: <title>
-- **Priority**: <priority>
-- **Description**: (copy below)
-
-<full description in Jira format>
-
----
+```bash
+python3 scripts/submit.py [--dry-run] [--artifacts-dir artifacts]
 ```
 
-## Step 5: Write Ticket Mapping
+The standard submit script handles:
+- Reading the review report and skipping rejected RFEs
+- Creating new RHAIRFE tickets for RFEs without a Jira key
+- Updating existing tickets for RFEs fetched from Jira (by Jira key)
+- Applying labels from the labeling scheme (see below)
+- Posting removed-context comments where applicable
+- Writing the ticket mapping to `artifacts/jira-tickets.md`
 
-Write `artifacts/jira-tickets.md`:
+## Step 2: Report Results
 
-```markdown
-# Jira Tickets
+After the script completes, read and report the results from `artifacts/jira-tickets.md`.
 
-| RFE | Jira Key | Title | Priority | URL |
-|-----|----------|-------|----------|-----|
-| RFE-001 | RHAIRFE-NNNN | ... | Normal | https://redhat.atlassian.net/browse/RHAIRFE-NNNN |
-```
+If the script fails, report the error and suggest the user check credentials or use `--dry-run` to validate locally.
 
-Or if created manually, note that tickets need to be created manually and list the submission guide location.
+## Labeling Scheme
+
+The scripts automatically apply labels based on what happened during the pipeline:
+
+| Label | When applied |
+|-------|-------------|
+| `rfe-creator-auto-created` | Ticket was created by the pipeline (new RFEs, not updates) |
+| `rfe-creator-auto-revised` | Ticket content was modified by automation (artifact contains Revision Notes) |
+| `rfe-creator-split-original` | Parent ticket that was decomposed into smaller RFEs |
+| `rfe-creator-split-result` | Child ticket produced by splitting another RFE |
+| `rfe-creator-needs-attention` | Automation couldn't fully resolve all issues — human review needed |
 
 $ARGUMENTS

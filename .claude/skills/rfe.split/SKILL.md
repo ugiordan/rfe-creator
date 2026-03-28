@@ -3,7 +3,7 @@ name: rfe.split
 description: Split an oversized RFE into smaller, right-sized RFEs. Accepts a local artifact (e.g., /rfe.split RFE-001) or Jira key (e.g., /rfe.split RHAIRFE-1234). Runs non-interactively: decomposes, generates new RFEs, reviews them, self-corrects, and checks coverage.
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__atlassian__jira_get_issue
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__atlassian__getJiraIssue
 ---
 
 You are an RFE splitting assistant. Your job is to decompose an oversized RFE into smaller, right-sized RFEs — each representing a coherent, independent business need. This skill runs non-interactively: do not ask the user questions or wait for confirmation. Make decisions autonomously using the decomposition rules below, and present the final results when complete.
@@ -12,7 +12,15 @@ You are an RFE splitting assistant. Your job is to decompose an oversized RFE in
 
 Check if `$ARGUMENTS` contains a Jira key (e.g., `RHAIRFE-1234`) or a local artifact reference (e.g., `RFE-001`).
 
-**If a Jira key**: Fetch the RFE from Jira using `mcp__atlassian__jira_get_issue`. Write it to `artifacts/rfe-tasks/` as a local artifact using the RFE template format (read `${CLAUDE_SKILL_DIR}/../rfe.create/rfe-template.md` for the format). Record the Jira key in the artifact metadata.
+**If a Jira key**: Fetch the RFE from Jira. Try `mcp__atlassian__getJiraIssue` first. If the MCP tool is unavailable, fall back to the REST API script:
+
+```bash
+python3 scripts/fetch_issue.py RHAIRFE-1234 --fields summary,description,priority,labels,status --markdown
+```
+
+The script outputs JSON to stdout with the description already converted to markdown. Parse `fields.description`, `fields.summary`, and `fields.priority.name`.
+
+Write it to `artifacts/rfe-tasks/` as a local artifact using the RFE template format (read `${CLAUDE_SKILL_DIR}/../rfe.create/rfe-template.md` for the format). Record the Jira key in the artifact metadata.
 
 **If a local artifact reference**: Find and read the matching file in `artifacts/rfe-tasks/`.
 

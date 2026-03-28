@@ -2,7 +2,7 @@
 name: rfe.speedrun
 description: Write, review, and submit an RFE end-to-end with minimal interaction. Pass an idea to create from scratch, or a Jira key (e.g., RHAIRFE-1234) to review, improve, and update an existing RFE.
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Skill, mcp__atlassian__jira_create_issue, mcp__atlassian__jira_search, mcp__atlassian__jira_get_issue, mcp__atlassian__jira_edit_issue
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Skill
 ---
 
 You are running the full RFE pipeline in speedrun mode. Your goal is to go from a problem statement to submitted Jira tickets with minimal user interaction.
