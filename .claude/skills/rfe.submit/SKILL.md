@@ -82,7 +82,7 @@ The standard submit script handles:
 - Creating new RHAIRFE tickets for RFEs with local IDs (RFE-NNN)
 - Updating existing tickets for RFEs with Jira IDs (RHAIRFE-NNNN)
 - Applying labels from the labeling scheme (see below)
-- Posting removed-context comments where applicable
+- Posting removed-context Jira comments where applicable (from `*-removed-context.yaml` — posts `genuine` and `unclassified` blocks)
 - Renaming local files from RFE-NNN to RHAIRFE-NNNN after submission
 - Rebuilding the rfes.md index
 

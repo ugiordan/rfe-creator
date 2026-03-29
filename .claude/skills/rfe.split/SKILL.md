@@ -22,7 +22,7 @@ python3 scripts/fetch_issue.py RHAIRFE-1234 --fields summary,description,priorit
 
 The script outputs JSON to stdout with the description already converted to markdown. Parse `fields.description`, `fields.summary`, and `fields.priority.name`.
 
-Write it to `artifacts/rfe-tasks/<jira_key>.md` using the RFE template format (read `${CLAUDE_SKILL_DIR}/../rfe.create/rfe-template.md` for the format).
+Write the Jira description to `artifacts/rfe-tasks/<jira_key>.md` as-is — preserve the original markdown structure, headings, and content exactly as fetched. Do not restructure, reformat, or fit it into any template. Only add YAML frontmatter (via `scripts/frontmatter.py set`). Do not add a title heading — the title lives in frontmatter only.
 
 First, read the schema to know exact field names and allowed values:
 

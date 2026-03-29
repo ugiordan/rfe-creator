@@ -21,7 +21,7 @@ python3 scripts/fetch_issue.py RHAIRFE-1234 --fields summary,description,priorit
 
 The script outputs JSON to stdout with description and comment bodies already converted to markdown. Parse `fields.description`, `fields.summary`, `fields.priority.name`, and `comments` array.
 
-Write the RFE to `artifacts/rfe-tasks/<jira_key>.md` (using the Jira key as the filename) using the RFE template format (read `${CLAUDE_SKILL_DIR}/../rfe.create/rfe-template.md` for the format).
+Write the Jira description to `artifacts/rfe-tasks/<jira_key>.md` as-is — preserve the original markdown structure, headings, and content exactly as fetched. Do not restructure, reformat, or fit it into any template. Only add YAML frontmatter (via `scripts/frontmatter.py set`). Do not add a title heading — the title lives in frontmatter only.
 
 First, read the schema to know exact field names and allowed values:
 
@@ -172,13 +172,7 @@ Always attempt at least one auto-revision cycle when any criterion scores below 
 
 **Reframe, don't remove.** When the assessor flags sections for HOW violations, the problem may not be the information — it's the framing. Prescriptive architecture and implementation directives can almost always be reframed into non-prescriptive context that preserves useful information while fixing the rubric score. For example, a section that assigns components to architectural roles can be reframed as a flat context list with a disclaimer that engineering should determine the design. Only remove content as a last resort when there is nothing reframeable (pure implementation detail with no business-facing content).
 
-**If content must be removed**, preserve it for Jira-sourced RFEs by writing it to `artifacts/rfe-tasks/{id}-removed-context.md` (using the same id prefix as the main file — Jira key or RFE-NNN-slug) so `/rfe.submit` can post it as a comment, prefixed with:
-
-```
-*[RFE Creator]* The following technical implementation details were removed from the RFE description during review. This content is better suited for a RHAISTRAT and is preserved here for reference:
-```
-
-This file must NOT be merged back into the RFE description.
+**If content must be removed**, it will be tracked automatically. The content preservation check (`check_content_preservation.py --write-yaml`) detects missing blocks and writes them to `artifacts/rfe-tasks/{id}-removed-context.yaml` as structured blocks with `type: unclassified`. This file must NOT be merged back into the RFE description.
 
 **When a section mixes WHAT and HOW and the assessor did not flag it**, leave it alone. Do not proactively scan for additional HOW content beyond what the assessor identified.
 
@@ -191,13 +185,25 @@ This file must NOT be merged back into the RFE description.
 1. Read the **full** review feedback for each failing RFE (from the review file just written)
 2. Read the comments file (`artifacts/rfe-tasks/{id}-comments.md`) if it exists — stakeholder comments may explain why certain content is intentional
 3. For each criterion the assessor flagged, follow its specific recommendations:
-   - **Open to HOW**: Reframe flagged sections to remove prescriptive framing while preserving useful context. If content cannot be reframed, remove it and write it to `artifacts/rfe-tasks/{id}-removed-context.md` for preservation as a Jira comment during `/rfe.submit`
+   - **Open to HOW**: Reframe flagged sections to remove prescriptive framing while preserving useful context. If content cannot be reframed, remove it from the RFE — the preservation check will track it automatically
    - **WHY**: Strengthen with available evidence (stakeholder comments, strategic alignment references); flag gaps the author must fill (named customers, revenue data)
    - **Right-sized**: Report the recommendation only; do not split or remove scope. Advise the user to run `/rfe.split` if splitting is needed
    - **WHAT / Not a task**: Follow assessor guidance if provided
-4. Document what changed and why in the review file's `## Revision History` section. Do NOT add revision notes to the RFE artifact itself — keep RFE files clean with only frontmatter and business content. Gaps that require author input (e.g., missing named customers) also belong in the review file, not in the artifact.
-5. Update the review file frontmatter: set `revised=true` if content was modified, set `needs_attention=true` if human review is still needed
-6. Re-run the review (go back to Step 2) on the revised artifacts
+4. **Content preservation check**: After each revision, run:
+   ```bash
+   python3 scripts/check_content_preservation.py artifacts/rfe-originals/<id>.md artifacts/rfe-tasks/<id>.md --write-yaml
+   ```
+   The `--write-yaml` flag automatically writes any missing blocks to `artifacts/rfe-tasks/{id}-removed-context.yaml` with `type: unclassified`. This ensures no content is silently dropped.
+
+5. **Classify removed blocks**: Read the YAML file and update each block's `type` field:
+   - **`reworded`**: The information is still in the RFE, just expressed differently (e.g., prescriptive rules reframed as user outcomes). This block will NOT be posted to Jira.
+   - **`genuine`**: Implementation specifics (API names, parameter schemas, architecture decisions) not present in the RFE that would be useful RHAISTRAT context. This block WILL be posted as a Jira comment during `/rfe.submit`.
+   - **`non-substantive`**: Marketing filler, empty template placeholders, or generic statements with no recoverable substance. This block will NOT be posted to Jira.
+
+   **After classifying, verify all blocks have been classified** — scan the YAML for any remaining `type: unclassified` entries and fix them. As a safety net, `/rfe.submit` treats `unclassified` blocks the same as `genuine` (they get posted) to prevent unintentional data loss.
+6. Document what changed and why in the review file's `## Revision History` section. Do NOT add revision notes to the RFE artifact itself — keep RFE files clean with only frontmatter and business content. Gaps that require author input (e.g., missing named customers) also belong in the review file, not in the artifact.
+7. Update the review file frontmatter: set `revised=true` if content was modified, set `needs_attention=true` if human review is still needed
+8. Re-run the review (go back to Step 2) on the revised artifacts
 
 **Revision limits**:
 - Maximum 2 auto-revision cycles
