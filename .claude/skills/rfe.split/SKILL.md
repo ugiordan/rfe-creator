@@ -49,6 +49,12 @@ python3 scripts/frontmatter.py set artifacts/rfe-tasks/<jira_key>.md \
 
 Also check for a prior review in `artifacts/rfe-reviews/` for this RFE — the right-sizing feedback explains why this RFE needs splitting.
 
+**Before proceeding, check the Right-sized score.** If the score is **1/2** ("slightly broad at 1-2 strategy features"), splitting may not be appropriate. An RFE that maps to 2 tightly-coupled strategy features is acceptable — the decomposition into strategy features happens at the RHAISTRAT level, not the RHAIRFE level. Only proceed with splitting if:
+- The Right-sized score is **0/2** (clearly needs 3+ features), OR
+- The score is 1/2 AND the capabilities serve genuinely different customer segments or user scenarios that could be independently prioritized without harm
+
+If the 1/2 score reflects delivery-coupled capabilities (see Step 2b), recommend keeping the RFE intact and stop. Tell the user: "This RFE scores 1/2 on Right-sized but the capabilities are delivery-coupled — splitting risks independent release of changes that must ship together. The RFE is acceptable as-is; strategy-level decomposition can happen in RHAISTRAT."
+
 ## Step 1.5: Load Right-sizing Rubric
 
 Bootstrap the assess-rfe skill if not already present:
@@ -89,14 +95,20 @@ For each gap capability, ask:
 1. **Could this ship independently and deliver value to a specific customer?** If yes, it's a candidate for its own RFE.
 2. **Does this require another capability to function at all?** If yes, they must stay together.
 3. **Does this serve a different customer segment or compliance requirement than adjacent capabilities?** If yes, it should be its own RFE even if it's thematically similar.
+4. **Would shipping one without the other create a broken customer experience?** If yes, they are **delivery-coupled** and must stay in the same RFE even if they are technically independent. Common delivery-coupled pairs:
+   - A breaking change and its migration path — shipping a new model without migration guidance strands existing customers
+   - A capability and its prerequisite enablement — e.g., a new API and the auth model it requires
+   - A deprecation and its replacement — removing the old without providing the new is a regression
 
-List every atomic capability with a one-sentence strategy-feature summary.
+List every atomic capability with a one-sentence strategy-feature summary. Mark any delivery-coupling relationships between capabilities.
 
-**Common mistake to avoid:** Grouping capabilities by theme when each capability within the theme serves different customer segments, has different technical maturity, and can ship independently. Theme-based groupings produce children that are still bundles of multiple strategy features.
+**Common mistakes to avoid:**
+- Grouping capabilities by theme when each capability within the theme serves different customer segments, has different technical maturity, and can ship independently. Theme-based groupings produce children that are still bundles of multiple strategy features.
+- Splitting delivery-coupled capabilities into separate RFEs because they are "technically independent." Migration paths, upgrade tooling, and API stability documentation are part of the same business need as the change they support — not separate needs.
 
 ### Step 2c: Propose Groupings
 
-Starting from the atomic capability list, group only capabilities that are truly inseparable — they share a code path AND cannot deliver value independently. Everything else stays separate.
+Starting from the atomic capability list, group capabilities that are truly inseparable — they share a code path AND cannot deliver value independently, OR they are delivery-coupled (shipping one without the other creates a broken customer experience). Everything else stays separate.
 
 Then propose 2-3 decomposition strategies, each with:
 - How many RFEs it would produce
@@ -137,6 +149,7 @@ When evaluating whether capabilities belong together, consider:
 - Do they share the same code path / team / delivery timeline? (Favors grouping)
 - Are they independently valuable to different customer segments? (Favors splitting)
 - Are they inseparable? (Must stay together)
+- Are they delivery-coupled? Would shipping one without the other harm customers? (Must stay together)
 
 Common decomposition axes:
 - **By capability area** — e.g., monitoring vs alerting vs reporting
