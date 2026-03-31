@@ -27,13 +27,14 @@ Read .claude/skills/rfe.split/prompts/split-agent.md and follow all instructions
 
 Launch all split agents in parallel.
 
-Poll for completion every 60 seconds:
+Write IDs to poll file once, then poll using `NEXT_POLL` interval:
 
 ```bash
-python3 scripts/check_review_progress.py --phase split <all_IDs>
+echo "<all_IDs>" > /tmp/rfe-poll-split.txt
+python3 scripts/check_review_progress.py --phase split --id-file /tmp/rfe-poll-split.txt
 ```
 
-Only output status when COMPLETED count changes. If any agent runs longer than 5 minutes, check its status.
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Only output status when COMPLETED count changes. If any agent runs longer than 5 minutes, check its status.
 
 After all agents complete, check split-status files for each ID. If the file is missing, write error to review frontmatter:
 

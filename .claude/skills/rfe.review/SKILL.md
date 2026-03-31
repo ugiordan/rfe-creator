@@ -25,13 +25,14 @@ For each remote ID, launch a **fetch agent** (model: opus, run_in_background: tr
 Read .claude/skills/rfe.review/prompts/fetch-agent.md and follow all instructions. Substitute {KEY} with <ID> throughout.
 ```
 
-Poll for completion every 60 seconds:
+Write IDs to poll file once, then poll using `NEXT_POLL` interval:
 
 ```bash
-python3 scripts/check_review_progress.py --phase fetch <all_remote_IDs>
+echo "<all_remote_IDs>" > /tmp/rfe-poll-fetch.txt
+python3 scripts/check_review_progress.py --phase fetch --id-file /tmp/rfe-poll-fetch.txt
 ```
 
-Only output a status line when COMPLETED count changes. If any agent runs longer than 5 minutes, check its status.
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Only output a status line when COMPLETED count changes. If any agent runs longer than 5 minutes, check its status.
 
 After all fetch agents complete, verify task files exist via Glob. For any missing, write an error to the review file:
 
@@ -83,17 +84,16 @@ Read the skill file at .claude/skills/rfe-feasibility-review/SKILL.md and follow
 
 Launch all agents for all IDs in parallel (2N agents total for N IDs).
 
-Poll for completion every 60 seconds:
+Write IDs to poll files once, then poll every 60 seconds:
 
 ```bash
-python3 scripts/check_review_progress.py --phase assess <all_IDs>
+echo "<all_IDs>" > /tmp/rfe-poll-assess.txt
+echo "<all_IDs>" > /tmp/rfe-poll-feasibility.txt
+python3 scripts/check_review_progress.py --phase assess --id-file /tmp/rfe-poll-assess.txt
+python3 scripts/check_review_progress.py --phase feasibility --id-file /tmp/rfe-poll-feasibility.txt
 ```
 
-```bash
-python3 scripts/check_review_progress.py --phase feasibility <all_IDs>
-```
-
-Only output status when COMPLETED count changes. Wait for all to complete.
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Only output status when COMPLETED count changes. Wait for all to complete.
 
 After completion, check prerequisites for each ID via Glob:
 - If assess result (`/tmp/rfe-assess/single/<ID>.result.md`) is missing → write error: `assess_failed`
@@ -110,13 +110,14 @@ Read .claude/skills/rfe.review/prompts/review-and-revise-agent.md and follow all
 
 Launch all review agents in parallel.
 
-Poll for completion every 60 seconds:
+Write IDs to poll file once, then poll using `NEXT_POLL` interval:
 
 ```bash
-python3 scripts/check_review_progress.py --phase review <all_IDs>
+echo "<all_IDs>" > /tmp/rfe-poll-review.txt
+python3 scripts/check_review_progress.py --phase review --id-file /tmp/rfe-poll-review.txt
 ```
 
-Wait for all to complete. For any ID where the review file is missing or has no frontmatter, write error: `review_failed`.
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Wait for all to complete. For any ID where the review file is missing or has no frontmatter, write error: `review_failed`.
 
 ## Step 3.5: Launch Revise Agents
 
@@ -134,13 +135,14 @@ Read .claude/skills/rfe.review/prompts/revise-agent.md and follow all instructio
 
 Launch all revise agents in parallel.
 
-Poll for completion every 60 seconds:
+Write IDs to poll file once, then poll using `NEXT_POLL` interval:
 
 ```bash
-python3 scripts/check_review_progress.py --phase revise <all_IDs_being_revised>
+echo "<all_IDs_being_revised>" > /tmp/rfe-poll-revise.txt
+python3 scripts/check_review_progress.py --phase revise --id-file /tmp/rfe-poll-revise.txt
 ```
 
-Wait for all to complete.
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Wait for all to complete.
 
 **Post-processing: fix revised flag.** The revise agent may run out of budget before setting `revised=true`. After all agents complete, for each revised ID, verify the flag is correct:
 
