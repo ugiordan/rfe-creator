@@ -129,13 +129,15 @@ Sleep for the `NEXT_POLL` seconds reported by the script before polling again. W
 
 ## Step 3.5: Launch Revise Agents
 
-After all review agents complete, determine which IDs need revision. For each ID, read review frontmatter:
+After all review agents complete, determine which IDs need revision:
 
 ```bash
-python3 scripts/frontmatter.py read artifacts/rfe-reviews/<ID>-review.md
+python3 scripts/filter_for_revision.py <all_IDs>
 ```
 
-Launch a **revise agent** (model: opus, run_in_background: true) for each ID where `pass=false` and `feasibility` is not `infeasible`:
+The script outputs the IDs that need revision (filters out passing, infeasible, and rejected IDs). If the output is empty, skip to Step 4.
+
+Launch a **revise agent** (model: opus, run_in_background: true) for each ID returned:
 
 ```
 Read .claude/skills/rfe.review/prompts/revise-agent.md and follow all instructions. Substitute: {ID}=<ID>
@@ -191,7 +193,13 @@ rm artifacts/rfe-reviews/<ID>-review.md  # for each reassess ID
 python3 scripts/preserve_review_state.py restore <all_reassess_IDs>
 ```
 
-7. Launch revise agents for IDs where `pass=false` and `feasibility` is not `infeasible`
+7. Filter for revision (also catches score regressions and sets autorevise_reject):
+
+```bash
+python3 scripts/filter_for_revision.py <all_reassess_IDs>
+```
+
+Launch revise agents for the IDs returned (if any).
 8. Wait for all revise agents to complete, run post-processing revised flag fix
 
 After cycle 2, stop regardless of results.
