@@ -20,11 +20,7 @@ Parse `$ARGUMENTS` for:
 Persist parsed flags (survives context compression):
 
 ```bash
-mkdir -p tmp && cat > tmp/autofix-config.yaml << 'EOF'
-headless: <true/false>
-announce_complete: <true/false>
-batch_size: <N>
-EOF
+python3 scripts/state.py init tmp/autofix-config.yaml headless=<true/false> announce_complete=<true/false> batch_size=<N>
 ```
 
 **JQL mode**: If `--jql` is present, run the query:
@@ -39,8 +35,12 @@ Parse the output: first line is `TOTAL=N`, remaining lines are IDs. These become
 
 If no IDs and no JQL query, stop with usage instructions.
 
-## Step 1: Bootstrap Pre-flight
+**Persist all IDs to disk** (survives context compression):
 
+```bash
+python3 scripts/state.py write-ids tmp/autofix-all-ids.txt <all_IDs>
+```
+## Step 1: Bootstrap Pre-flight
 Run bootstrap once before any batching:
 
 ```bash
@@ -56,36 +56,79 @@ bash scripts/bootstrap-assess-rfe.sh
 If the retry also fails, stop entirely: "assess-rfe bootstrap failed — cannot proceed. Check network connectivity and retry."
 
 ## Step 2: Resume Check
+Re-read the ID list from disk (in case context was compressed):
 
+```bash
+python3 scripts/state.py read-ids tmp/autofix-all-ids.txt
+```
 Check which IDs are already processed:
 
 ```bash
-python3 scripts/check_resume.py <all_IDs>
+python3 scripts/check_resume.py $(python3 scripts/state.py read-ids tmp/autofix-all-ids.txt)
 ```
 
-Parse output for `PROCESS=` and `SKIP=` lines. Remove already-processed IDs (pass=true, no error) from the processing list. Report skipped count if any.
+Parse output for `PROCESS=` and `SKIP=` lines. Remove already-processed IDs (pass=true, no error) from the processing list.
+Persist the filtered processing list to disk (survives context compression):
+
+```bash
+python3 scripts/state.py write-ids tmp/autofix-process-ids.txt <remaining_IDs>
+```
 
 ## Step 3: Batch Processing
 
-Split remaining IDs into batches of `batch-size` (default 5). Persist the start time so it survives context compression:
+Re-read the filtered ID list from disk (in case context was compressed):
 
 ```bash
-echo "start_time: $(python3 -c "from datetime import datetime,timezone; print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")" >> tmp/autofix-config.yaml
+python3 scripts/state.py read-ids tmp/autofix-process-ids.txt
+```
+Split remaining IDs into batches of `batch-size` (default 5).
+
+Persist the start time, batch count, and per-batch ID lists so they survive context compression:
+
+```bash
+python3 scripts/state.py set tmp/autofix-config.yaml start_time=$(python3 scripts/state.py timestamp) total_batches=<M>
+```
+
+```bash
+python3 scripts/state.py write-ids tmp/autofix-batch-1-ids.txt <batch_1_IDs>
+python3 scripts/state.py write-ids tmp/autofix-batch-2-ids.txt <batch_2_IDs>
+# ... one file per batch
 ```
 
 For each batch:
 
+Re-read config to recover batch position after potential context compression, then update the current batch tracker:
+
+```bash
+python3 scripts/state.py read tmp/autofix-config.yaml
+python3 scripts/state.py set tmp/autofix-config.yaml current_batch=<N>
+```
+
+Re-read this batch's IDs from disk (do not use IDs from memory — they may be hallucinated after compression):
+
+```bash
+python3 scripts/state.py read-ids tmp/autofix-batch-N-ids.txt
+```
 ### 3a: Review
 
-Invoke `/rfe.review` as an inline Skill:
+Invoke `/rfe.review` as an inline Skill, using IDs from the batch file:
 
 ```
-/rfe.review --headless <batch_IDs>
+/rfe.review --headless <batch_IDs_from_file>
 ```
 
 This runs the full review pipeline (fetch, assess, feasibility, review-and-revise, re-assess if needed). Wait for it to complete.
 
 ### 3b: Collect Results
+
+Re-read config and batch IDs from disk (context compression may have corrupted in-memory state):
+
+```bash
+python3 scripts/state.py read tmp/autofix-config.yaml
+python3 scripts/state.py read-ids tmp/autofix-batch-N-ids.txt
+```
+
+Use the IDs from the file (not memory) for all subsequent steps in this batch:
 
 ```bash
 python3 scripts/collect_recommendations.py <batch_IDs>
@@ -116,14 +159,25 @@ Output a progress update:
 ```
 
 ## Step 4: Retry Queue
-
-After all regular batches complete, scan ALL processed IDs for errors:
+After all regular batches complete, re-read the full ID list from disk:
 
 ```bash
-python3 scripts/collect_recommendations.py <all_processed_IDs>
+python3 scripts/state.py read-ids tmp/autofix-all-ids.txt
+```
+Scan ALL processed IDs for errors:
+
+```bash
+python3 scripts/collect_recommendations.py <all_IDs_from_file>
 ```
 
-Parse the `ERRORS=` line. If empty, skip to Step 5. For each error ID:
+Parse the `ERRORS=` line. If empty, skip to Step 5.
+
+If errors found, **persist retry IDs to disk** (do not rely on in-memory parsing — they may be lost to compression during the retry run):
+
+```bash
+python3 scripts/state.py write-ids tmp/autofix-retry-ids.txt <error_IDs>
+```
+For each error ID:
 
 1. For IDs with `split_failed` errors: clean up first:
 
@@ -137,22 +191,27 @@ python3 scripts/cleanup_partial_split.py <ID>
 python3 scripts/frontmatter.py set artifacts/rfe-reviews/<ID>-review.md error=null
 ```
 
-3. Run the retry batch through the full pipeline (Steps 3a-3c)
-
-4. If they fail again, report as permanent failures
-
-## Step 5: Generate Reports
-
-Re-read persisted config to recover flags and start time after potential context compression:
+3. Re-read retry IDs from disk before running the pipeline (compression may have lost them during cleanup):
 
 ```bash
-cat tmp/autofix-config.yaml
+python3 scripts/state.py read-ids tmp/autofix-retry-ids.txt
 ```
 
-Parse `start_time` from the output. Generate the run report:
+4. Run the retry batch through the full pipeline (Steps 3a-3c) using IDs from the file
+
+5. If they fail again, report as permanent failures
+
+## Step 5: Generate Reports
+Re-read persisted config and ID list to recover after potential context compression:
 
 ```bash
-python3 scripts/generate_run_report.py --start-time "<start_time>" --batch-size <N> [--retried <retry_IDs>] [--retry-successes <success_IDs>] <all_IDs>
+python3 scripts/state.py read tmp/autofix-config.yaml
+python3 scripts/state.py read-ids tmp/autofix-all-ids.txt
+```
+Parse `start_time` from the config. Use IDs from the file. Generate the run report:
+
+```bash
+python3 scripts/generate_run_report.py --start-time "<start_time>" --batch-size <N> [--retried <retry_IDs>] [--retry-successes <success_IDs>] <all_IDs_from_file>
 ```
 
 Parse the `run_id` from the script output (format: `YYYYMMDD-HHMMSS`). Generate the HTML review report using that `run_id`:
@@ -162,8 +221,20 @@ python3 scripts/generate_review_pdf.py --revised-only --output artifacts/auto-fi
 ```
 
 ## Step 6: Final Summary
+Re-read config and IDs from disk (context compression may have lost flags like `announce_complete`):
 
-Present consolidated results:
+```bash
+python3 scripts/state.py read tmp/autofix-config.yaml
+python3 scripts/state.py read-ids tmp/autofix-all-ids.txt
+```
+
+List split children (these are created during processing and are not in the persisted ID list):
+
+```bash
+ls artifacts/rfe-reviews/RFE-*-review.md 2>/dev/null | sed 's|artifacts/rfe-reviews/||;s|-review.md||'
+```
+
+Present consolidated results (combine persisted IDs with any split children found above):
 
 ```
 ## Auto-fix Complete
