@@ -237,15 +237,39 @@ Launch an **assess agent** (model: opus, run_in_background: true, subagent_type:
 Read .claude/skills/rfe.review/prompts/assess-agent.md and follow all instructions. Substitute: {KEY}=<ID>, {DATA_FILE}=/tmp/rfe-assess/single/<ID>.md, {RUN_DIR}=/tmp/rfe-assess/single, {PROMPT_PATH}=.context/assess-rfe/scripts/agent_prompt.md
 ```
 
-Launch all assess agents in parallel. Wait for all to complete — verify `/tmp/rfe-assess/single/<ID>.result.md` exists for each.
+Launch all assess agents in parallel.
 
-**4c. Launch review agents.** For each reassess ID, launch a **review agent** (model: opus, run_in_background: true):
+Re-read reassess IDs from disk, write poll file, and poll using `NEXT_POLL` interval:
+
+```bash
+python3 scripts/state.py write-ids tmp/rfe-poll-reassess-assess.txt $(python3 scripts/state.py read-ids tmp/review-reassess-ids.txt)
+python3 scripts/check_review_progress.py --phase assess --id-file tmp/rfe-poll-reassess-assess.txt
+```
+
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Wait for all to complete.
+
+**4c. Launch review agents.** Re-read reassess IDs from disk:
+
+```bash
+python3 scripts/state.py read-ids tmp/review-reassess-ids.txt
+```
+
+For each reassess ID, launch a **review agent** (model: opus, run_in_background: true):
 
 ```
 Read .claude/skills/rfe.review/prompts/review-agent.md and follow all instructions. Substitute: {ID}=<ID>, {ASSESS_PATH}=/tmp/rfe-assess/single/<ID>.result.md, {FEASIBILITY_PATH}=artifacts/rfe-reviews/<ID>-feasibility.md, {FIRST_PASS}=false
 ```
 
-Launch all review agents in parallel. Wait for all to complete (file existence check works because review files were removed in 4a).
+Launch all review agents in parallel.
+
+Re-read reassess IDs from disk, write poll file, and poll using `NEXT_POLL` interval:
+
+```bash
+python3 scripts/state.py write-ids tmp/rfe-poll-reassess-review.txt $(python3 scripts/state.py read-ids tmp/review-reassess-ids.txt)
+python3 scripts/check_review_progress.py --phase review --id-file tmp/rfe-poll-reassess-review.txt
+```
+
+Sleep for the `NEXT_POLL` seconds reported by the script before polling again. Wait for all to complete (review files were removed in 4a, so progress detection works).
 
 **4d. Restore before_scores and revision history.** Re-read reassess IDs from disk:
 
