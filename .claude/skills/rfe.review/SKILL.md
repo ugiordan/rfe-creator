@@ -78,7 +78,7 @@ For each ID being reviewed:
 python3 scripts/prep_assess.py <ID>
 ```
 
-**Launch assess agent** (model: opus, run_in_background: true, subagent_type: assess-rfe:rfe-scorer):
+**Launch assess agent** (model: opus, run_in_background: true, subagent_type: rfe-scorer):
 
 ```
 Read .claude/skills/rfe.review/prompts/assess-agent.md and follow all instructions. Substitute: {KEY}=<ID>, {DATA_FILE}=/tmp/rfe-assess/single/<ID>.md, {RUN_DIR}=/tmp/rfe-assess/single, {PROMPT_PATH}=.context/assess-rfe/scripts/agent_prompt.md
@@ -231,7 +231,7 @@ rm artifacts/rfe-reviews/<ID>-review.md  # for each reassess ID
 python3 scripts/prep_assess.py <ID>
 ```
 
-Launch an **assess agent** (model: opus, run_in_background: true, subagent_type: assess-rfe:rfe-scorer) for each reassess ID:
+Launch an **assess agent** (model: opus, run_in_background: true, subagent_type: rfe-scorer) for each reassess ID:
 
 ```
 Read .claude/skills/rfe.review/prompts/assess-agent.md and follow all instructions. Substitute: {KEY}=<ID>, {DATA_FILE}=/tmp/rfe-assess/single/<ID>.md, {RUN_DIR}=/tmp/rfe-assess/single, {PROMPT_PATH}=.context/assess-rfe/scripts/agent_prompt.md

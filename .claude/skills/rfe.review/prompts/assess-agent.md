@@ -9,6 +9,6 @@ Issue key: {KEY}
 Data file: {DATA_FILE}
 Run directory: {RUN_DIR}
 
-Launch with: subagent_type: assess-rfe:rfe-scorer
+Launch with: subagent_type: rfe-scorer
 
 Do not return a summary. Your work is complete when the result file exists.
