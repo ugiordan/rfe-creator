@@ -29,7 +29,7 @@ python3 scripts/state.py init tmp/autofix-config.yaml headless=<true/false> anno
 python3 scripts/jql_query.py "<query>" [--limit N]
 ```
 
-Parse the output: first line is `TOTAL=N`, remaining lines are IDs. These become the processing list.
+The script prints the actual JQL it runs (with added filters) to stderr. Output this to the user: `[AUTOFIX] JQL: <jql>`. Parse stdout: first line is `TOTAL=N`, remaining lines are IDs. These become the processing list.
 
 **Explicit mode**: Use the provided IDs directly.
 
