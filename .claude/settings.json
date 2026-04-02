@@ -6,10 +6,12 @@
       "Bash(python3 scripts/fetch_issue.py *)",
       "Bash(bash scripts/bootstrap-assess-rfe.sh)",
       "Bash(bash scripts/fetch-architecture-context.sh)",
-      "Bash(python3 .context/assess-rfe/scripts/prep_single.py *)",
+      "Bash(python3 scripts/prep_assess.py *)",
       "Bash(python3 .context/assess-rfe/scripts/check_progress.py *)",
       "Bash(python3 .context/assess-rfe/scripts/parse_results.py *)",
       "Bash(python3 .context/assess-rfe/scripts/summarize_run.py *)",
+      "Bash(python3 .context/assess-rfe/scripts/fetch_single.py *)",
+      "Bash(python3 .context/assess-rfe/scripts/export_rubric.py *)",
       "Bash(python3 scripts/check_review_progress.py *)",
       "Bash(python3 scripts/check_resume.py *)",
       "Bash(python3 scripts/collect_recommendations.py *)",
@@ -24,14 +26,14 @@
       "Bash(python3 scripts/filter_for_revision.py *)",
       "Bash(python3 scripts/generate_review_pdf.py *)",
       "Bash(python3 scripts/check_conflicts.py *)",
-      "Bash(cp artifacts/rfe-tasks/*.md /tmp/rfe-assess/single/*.md)",
       "Edit(artifacts/**)",
       "Edit(/tmp/rfe-assess/**)",
       "Write(artifacts/**)",
       "Write(/tmp/rfe-assess/**)"
     ],
     "additionalDirectories": [
-      "/tmp/rfe-assess"
+      "/tmp/rfe-assess",
+      ".context/assess-rfe"
     ]
   }
 }

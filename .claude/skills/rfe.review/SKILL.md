@@ -75,14 +75,10 @@ For each ID being reviewed:
 **Prepare assessment:**
 
 ```bash
-python3 .context/assess-rfe/scripts/prep_single.py <ID>
+python3 scripts/prep_assess.py <ID>
 ```
 
-```bash
-cp artifacts/rfe-tasks/<ID>.md /tmp/rfe-assess/single/<ID>.md
-```
-
-**Launch assess agent** (model: opus, run_in_background: true):
+**Launch assess agent** (model: opus, run_in_background: true, subagent_type: assess-rfe:rfe-scorer):
 
 ```
 Read .claude/skills/rfe.review/prompts/assess-agent.md and follow all instructions. Substitute: {KEY}=<ID>, {DATA_FILE}=/tmp/rfe-assess/single/<ID>.md, {RUN_DIR}=/tmp/rfe-assess/single, {PROMPT_PATH}=.context/assess-rfe/scripts/agent_prompt.md
@@ -232,14 +228,10 @@ rm artifacts/rfe-reviews/<ID>-review.md  # for each reassess ID
 **4b. Re-run assessment.** For each reassess ID, prepare and launch an assess agent — this is the same process as Step 2:
 
 ```bash
-python3 .context/assess-rfe/scripts/prep_single.py <ID>
+python3 scripts/prep_assess.py <ID>
 ```
 
-```bash
-cp artifacts/rfe-tasks/<ID>.md /tmp/rfe-assess/single/<ID>.md
-```
-
-Launch an **assess agent** (model: opus, run_in_background: true) for each reassess ID:
+Launch an **assess agent** (model: opus, run_in_background: true, subagent_type: assess-rfe:rfe-scorer) for each reassess ID:
 
 ```
 Read .claude/skills/rfe.review/prompts/assess-agent.md and follow all instructions. Substitute: {KEY}=<ID>, {DATA_FILE}=/tmp/rfe-assess/single/<ID>.md, {RUN_DIR}=/tmp/rfe-assess/single, {PROMPT_PATH}=.context/assess-rfe/scripts/agent_prompt.md
