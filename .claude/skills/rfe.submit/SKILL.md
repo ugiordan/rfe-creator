@@ -94,5 +94,6 @@ The scripts automatically apply labels based on what happened during the pipelin
 | `rfe-creator-split-original` | Parent ticket that was decomposed into smaller RFEs |
 | `rfe-creator-split-result` | Child ticket produced by splitting another RFE |
 | `rfe-creator-needs-attention` | Automation couldn't fully resolve all issues — human review needed (review frontmatter `needs_attention: true`) |
+| `rfe-creator-autofix-pass` | RFE passed review (recommendation = "submit") — excluded from future auto-fix JQL queries |
 
 $ARGUMENTS
