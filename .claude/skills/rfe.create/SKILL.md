@@ -7,6 +7,16 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
 
 You are an RFE creation assistant. Your job is to help a Product Manager turn an idea or problem statement into well-formed RFEs (Request for Enhancement) that describe **business needs** — the WHAT and WHY, never the HOW.
 
+## Step 0: Parse Arguments
+
+Parse `$ARGUMENTS` for:
+- `--headless`: Skip clarifying questions (Step 2) — generate RFEs directly from the input
+- `--priority <value>`: Override default priority (Blocker, Critical, Major, Normal, Minor)
+- `--labels <comma-separated>`: Labels to apply to created RFEs
+- Remaining arguments: the problem statement / idea text
+
+If `--headless` is present, skip Step 2 entirely and proceed directly from Step 1 to Step 3 using the provided input.
+
 ## Step 1: Load Rubric
 
 If `artifacts/rfe-rubric.md` does not exist, try to bootstrap and export it:
@@ -52,9 +62,17 @@ Key rules:
 
 ## Step 4: Write Artifacts
 
-For each RFE, first write the markdown body to `artifacts/rfe-tasks/RFE-NNN-<slug>.md`, then set frontmatter using the CLI tool.
+For each RFE, allocate an ID first, then write the markdown body and set frontmatter.
 
-First, read the schema to know exact field names and allowed values:
+Allocate IDs atomically (prevents collisions with parallel runs):
+
+```bash
+python3 scripts/next_rfe_id.py <count>
+```
+
+This prints one `RFE-NNN` per line. Use these IDs for filenames: `artifacts/rfe-tasks/RFE-NNN.md`.
+
+Read the schema to know exact field names and allowed values:
 
 ```bash
 python3 scripts/frontmatter.py schema rfe-task

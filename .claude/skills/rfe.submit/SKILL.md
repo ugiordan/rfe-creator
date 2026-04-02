@@ -90,7 +90,7 @@ The scripts automatically apply labels based on what happened during the pipelin
 | Label | When applied |
 |-------|-------------|
 | `rfe-creator-auto-created` | Ticket was created by the pipeline (new RFEs, not updates) |
-| `rfe-creator-auto-revised` | Ticket content was modified by automation (review frontmatter `revised: true`) |
+| `rfe-creator-auto-revised` | Ticket content was modified by automation (review frontmatter `auto_revised: true`) |
 | `rfe-creator-split-original` | Parent ticket that was decomposed into smaller RFEs |
 | `rfe-creator-split-result` | Child ticket produced by splitting another RFE |
 | `rfe-creator-needs-attention` | Automation couldn't fully resolve all issues — human review needed (review frontmatter `needs_attention: true`) |
