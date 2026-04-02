@@ -7,7 +7,7 @@ Fetch Jira issue {KEY} and write artifacts. Steps:
 2. Write the Jira description to artifacts/rfe-tasks/{KEY}.md as-is — preserve the original markdown structure, headings, and content exactly as fetched. Do not restructure, reformat, or fit it into any template. Do not add a title heading — the title lives in frontmatter only.
 
 3. Run: python3 scripts/frontmatter.py schema rfe-task
-   Then: python3 scripts/frontmatter.py set artifacts/rfe-tasks/{KEY}.md rfe_id={KEY} title="<title>" priority=<priority> size=<inferred> status=Ready
+   Then: python3 scripts/frontmatter.py set artifacts/rfe-tasks/{KEY}.md rfe_id={KEY} title="<title>" priority=<priority> size=<inferred> status=Ready original_labels="<comma-separated labels or null if none>"
 
 4. Save a raw copy of just the description to artifacts/rfe-originals/{KEY}.md (create directory if needed). This file is the baseline for before/after analysis and submit-time conflict detection. It is never modified after creation.
 

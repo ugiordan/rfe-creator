@@ -37,10 +37,10 @@ For each criterion the assessor flagged:
 **Immediately after editing the task file**, run:
 
 ```bash
-python3 scripts/frontmatter.py set artifacts/rfe-reviews/{ID}-review.md auto_revised=true needs_attention=<true/false>
+python3 scripts/frontmatter.py set artifacts/rfe-reviews/{ID}-review.md auto_revised=true needs_attention=<true/false> needs_attention_reason="<reason or null>"
 ```
 
-Set `needs_attention=true` if human review is still needed (e.g., missing evidence the author must provide). This is the most important step — do not skip it.
+Set `needs_attention=true` if human review is still needed (e.g., missing evidence the author must provide). When true, set `needs_attention_reason` to a concise explanation (1-2 sentences) of what the human needs to address. When false, set `needs_attention_reason=null`. This is the most important step — do not skip it.
 
 ## Step 4: Content Preservation
 

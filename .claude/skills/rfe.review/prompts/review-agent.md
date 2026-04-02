@@ -42,10 +42,13 @@ Parse the score table from the assessment result file. Determine recommendation:
 - reject: fundamentally infeasible or needs rethinking
 Do NOT recommend split when capabilities are delivery-coupled.
 
+Set `needs_attention=true` when the RFE needs human review despite its score — e.g., feasibility is indeterminate/infeasible, references non-existent components, or has concerns the rubric doesn't capture. When true, also set `needs_attention_reason` to a concise explanation (1-2 sentences) of what needs human attention. When false, set `needs_attention_reason=null`.
+
 ```bash
 python3 scripts/frontmatter.py set artifacts/rfe-reviews/{ID}-review.md \
     rfe_id={ID} score=<total> pass=<true/false> recommendation=<rec> \
     feasibility=<feasible/infeasible/indeterminate> auto_revised=<true/false> needs_attention=<true/false> \
+    needs_attention_reason="<reason or null>" \
     scores.what=<n> scores.why=<n> scores.open_to_how=<n> scores.not_a_task=<n> scores.right_sized=<n>
 ```
 
