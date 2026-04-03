@@ -26,6 +26,8 @@ Comments file: artifacts/rfe-tasks/{ID}-comments.md (read if it exists)
 
 **Do not invent missing evidence.** If WHY is flagged for missing named customers, flag the gap — do not fabricate evidence.
 
+**Never use HTML comments (`<!-- -->`) in the task file.** HTML comments are invisible when rendered in Jira — authors will never see them. If you need to flag something for the author, set `needs_attention=true` and `needs_attention_reason` in frontmatter (Step 3), which gets posted as a visible Jira comment during submission.
+
 For each criterion the assessor flagged:
 - **Open to HOW**: Reframe flagged sections to remove prescriptive framing while preserving useful context
 - **WHY**: Strengthen with available evidence; flag gaps the author must fill
