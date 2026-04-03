@@ -30,7 +30,7 @@ python3 scripts/state.py init tmp/autofix-config.yaml headless=<true/false> anno
 python3 scripts/snapshot_fetch.py fetch "<query>" --ids-file tmp/autofix-all-ids.txt --changed-file tmp/autofix-changed-ids.txt [--limit N] [--data-dir "<path>"]
 ```
 
-The script prints the actual JQL to stderr. Output this to the user: `[AUTOFIX] JQL: <jql>`. The script writes all IDs to process to `tmp/autofix-all-ids.txt` and changed-only IDs to `tmp/autofix-changed-ids.txt`. Parse stdout for counts: `TOTAL=N`, `CHANGED=N`, `NEW=N`.
+The script prints the actual JQL to stderr. Output this to the user: `[AUTOFIX] JQL: <jql>`. The script writes all IDs to process to `tmp/autofix-all-ids.txt` and changed-only IDs to `tmp/autofix-changed-ids.txt`. Parse stdout for counts: `TOTAL=N`, `CHANGED=N`, `NEW=N`, `UNCHANGED=N`.
 
 **Explicit mode**: Use the provided IDs directly. Persist to disk:
 
@@ -41,7 +41,7 @@ python3 scripts/state.py write-ids tmp/autofix-changed-ids.txt
 
 If no IDs and no JQL query, stop with usage instructions.
 
-Output: `[AUTOFIX] Step 0: Parsed N IDs (C changed, W new), batch_size=M`
+Output: `[AUTOFIX] Step 0: Parsed N IDs (C changed, W new, U unchanged), batch_size=M`
 
 ## Step 1: Bootstrap Pre-flight
 
