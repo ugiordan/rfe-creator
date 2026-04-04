@@ -84,7 +84,9 @@ If there are children to review, invoke `/rfe.review` as an inline Skill, passin
 
 This triggers the full agent delegation review pipeline on all children.
 
-## Step 3: Right-sizing Self-Correction (up to 3 cycles)
+## Step 3: Right-sizing Self-Correction (up to 1 cycle)
+
+Limited to 1 cycle because repeated re-splitting compounds child count (e.g. 5 → 9) and produces diminishing returns — if decomposition is still wrong after one correction, it needs human judgment.
 
 Initialize the correction cycle counter on disk (set-default is safe if compression causes re-entry — it won't reset an existing counter):
 
@@ -98,7 +100,7 @@ After `/rfe.review` completes on children, re-read config and parent IDs (contex
 python3 scripts/state.py read tmp/split-config.yaml
 ```
 
-If `correction_cycle` is 3 or higher, stop and report remaining right-sizing concerns. Otherwise, re-derive child IDs:
+If `correction_cycle` is 1 or higher, stop and report remaining right-sizing concerns. Otherwise, re-derive child IDs:
 
 ```bash
 python3 scripts/collect_children.py $(python3 scripts/state.py read-ids tmp/split-all-ids.txt)
@@ -124,7 +126,7 @@ After each cycle, increment the counter on disk:
 python3 scripts/state.py set tmp/split-config.yaml correction_cycle=<N+1>
 ```
 
-Re-read config before starting the next cycle to check the counter. Stop after 3 cycles and report remaining right-sizing concerns.
+Re-read config before starting the next cycle to check the counter. Stop after 1 cycle and report remaining right-sizing concerns.
 
 **Do not re-split for non-Right-sized criteria.** This loop only corrects grouping mistakes caught by the Right-sized score. Other criteria are handled by `/rfe.review`'s auto-revision.
 
