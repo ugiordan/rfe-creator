@@ -179,6 +179,12 @@ If the script reports files differ and frontmatter shows `auto_revised=false`, f
 python3 scripts/frontmatter.py set artifacts/rfe-reviews/<ID>-review.md auto_revised=true
 ```
 
+If the script reports files are identical and frontmatter shows `auto_revised=true`, fix it:
+
+```bash
+python3 scripts/frontmatter.py set artifacts/rfe-reviews/<ID>-review.md auto_revised=false
+```
+
 ## Review Step 4: Re-assess if Revised (max 2 cycles)
 
 Re-read ID list from disk:
