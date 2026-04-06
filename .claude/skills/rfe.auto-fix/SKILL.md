@@ -122,7 +122,7 @@ Output: `[AUTOFIX] Batch N/M: K IDs`
 Invoke `/rfe.review` as an inline Skill, using IDs from the batch file:
 
 ```
-/rfe.review --headless <batch_IDs_from_file>
+/rfe.review --headless --caller autofix <batch_IDs_from_file>
 ```
 
 This runs the full review pipeline (fetch, assess, feasibility, review, revise, re-assess if needed). Wait for it to complete.

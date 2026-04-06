@@ -79,7 +79,7 @@ Parse the output to get all child RFE IDs. If any parent has zero children despi
 If there are children to review, invoke `/rfe.review` as an inline Skill, passing `--headless` through if present:
 
 ```
-/rfe.review [--headless] <child_ID_1> <child_ID_2> ...
+/rfe.review [--headless] --caller split <child_ID_1> <child_ID_2> ...
 ```
 
 This triggers the full agent delegation review pipeline on all children.
@@ -117,7 +117,7 @@ If any child scores below 2/2 on `scores.right_sized`:
 1. **Re-split**: Launch a split agent for the offending child (same prompt as Split Step 1)
 2. **Wait** for the agent to complete
 3. **Collect new children**: `python3 scripts/collect_children.py <re-split_ID>`
-4. **Review new children**: Invoke `/rfe.review [--headless] <new_child_IDs>`
+4. **Review new children**: Invoke `/rfe.review [--headless] --caller split <new_child_IDs>`
 5. **Check again**: Read right-sized scores for new children
 
 After each cycle, increment the counter on disk:
@@ -144,7 +144,13 @@ Re-read flags (in case context was compressed):
 python3 scripts/state.py read tmp/split-config.yaml
 ```
 
-**If `headless: true`**: The split phase is complete, but the overall pipeline is NOT finished. Do not output a summary — the calling orchestrator handles all reporting. **Yield execution to the calling skill's next step immediately.**
+**If `headless: true`**: Output the text "rfe.split step on current iteration of rfe.auto-fix batch loop completed." then run:
+
+```bash
+python3 scripts/state.py read tmp/autofix-config.yaml 2>/dev/null; true
+```
+
+Returning to **Step 3d: Between-Batch Summary** of `/rfe.auto-fix`. Re-read the batch IDs from `tmp/autofix-batch-N-ids.txt` (where N = `current_batch` from the config above). If the autofix config is not visible, re-read `/rfe.auto-fix` SKILL.md for the full batch loop. Do not summarize or stop.
 
 **If interactive (no `--headless`)**: Present the final state for each parent ID:
 

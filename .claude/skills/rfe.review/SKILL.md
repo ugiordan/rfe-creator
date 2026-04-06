@@ -11,12 +11,13 @@ You are an RFE review orchestrator. Your job is to coordinate reviews and revisi
 
 Parse `$ARGUMENTS` for flags and IDs:
 - Strip `--headless` flag if present (suppresses end-of-run summary)
+- Strip `--caller <name>` flag if present (identifies calling skill for headless return)
 - Remaining arguments are one or more space-separated RFE IDs (RHAIRFE-NNNN or RFE-NNN)
 
 Persist parsed flags (survives context compression):
 
 ```bash
-python3 scripts/state.py init tmp/review-config.yaml headless=<true/false>
+python3 scripts/state.py init tmp/review-config.yaml headless=<true/false> caller=<autofix|split|none>
 ```
 
 Persist all IDs to disk (survives context compression):
@@ -306,7 +307,18 @@ Re-read flags (in case context was compressed):
 python3 scripts/state.py read tmp/review-config.yaml
 ```
 
-**If `headless: true`**: The review phase is complete, but the overall pipeline is NOT finished. Do not output a summary — the calling orchestrator handles all reporting. **Yield execution to the calling skill's next step immediately.**
+**If `headless: true`**: Output the text "rfe.review step completed." then run:
+
+```bash
+python3 scripts/state.py read tmp/review-config.yaml
+python3 scripts/state.py read tmp/autofix-config.yaml 2>/dev/null; python3 scripts/state.py read tmp/split-config.yaml 2>/dev/null; true
+```
+
+Check the `caller` field above:
+- **`autofix`**: Returning to **Step 3b: Collect Results** of `/rfe.auto-fix`. Re-read batch IDs from `tmp/autofix-batch-N-ids.txt` (where N = `current_batch` from `tmp/autofix-config.yaml`). If the autofix config is not visible, re-read `/rfe.auto-fix` SKILL.md for the full batch loop.
+- **`split`**: Returning to **Split Step 3: Right-sizing Self-Correction** of `/rfe.split`. Re-read parent IDs from `tmp/split-all-ids.txt`. If the split config is not visible, re-read `/rfe.split` SKILL.md for the full flow.
+
+Do not summarize or stop.
 
 **If interactive (no `--headless`)**: Re-read ID list and present summary:
 
