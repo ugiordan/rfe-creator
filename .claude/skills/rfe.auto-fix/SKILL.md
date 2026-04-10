@@ -79,13 +79,13 @@ Repeat until phase is `DONE`:
 python3 scripts/pipeline_state.py get-phase-config
 ```
 
-Parse YAML for: `type`, `command`, `prompt`, `ids_file`, `vars`, `poll_phase`, `post_verify`, `timeout`, `pre_script`, `subagent_type`, `parallel`.
+Parse YAML for: `type`, `prompt`, `ids_file`, `vars`, `poll_phase`, `post_verify`, `timeout`, `pre_script`, `subagent_type`, `parallel`.
 
 ### Step 2: Dispatch
 
 **noop**: Skip to advance.
 
-**script**: Run the `command` directly. If `ids_file` is set, read IDs from it and append as positional args.
+**script**: Run `python3 scripts/pipeline_state.py run-phase`.
 
 **agent**:
 
