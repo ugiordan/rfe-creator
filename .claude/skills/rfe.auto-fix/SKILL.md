@@ -106,14 +106,14 @@ Parse YAML for: `type`, `prompt`, `ids_file`, `vars`, `poll_phase`, `post_verify
         `"<vars as KEY=VALUE lines>\n\nRead <prompt> and follow all instructions exactly."`
       - If `parallel` entries exist: for each entry, launch one additional background Agent. If the entry has its own `vars`, build the env string from those (with `{ID}` replaced) — do NOT use the parent phase's `vars`. Use the entry's `subagent_type` if set. The prompt format is the same: `"<vars as KEY=VALUE lines>\n\nRead <entry's prompt> and follow all instructions exactly."`
 
-   b. Poll until wave completes:
+   b. Wait for wave to complete:
 
       ```bash
-      python3 scripts/check_review_progress.py --poll --phase <poll_phase> [--also-phase <p> for each parallel entry's poll_phase] [--fast-poll if not headless] --id-file <ids_file>
+      python3 scripts/check_review_progress.py --wait --phase <poll_phase> [--also-phase <p> for each parallel entry's poll_phase] [--fast-poll if not headless] --id-file <ids_file>
       ```
 
       Blocks ~90s (sleeps internally), then exits 0 (done) or 3 (pending).
-      On exit 3, re-run the exact same command until exit 0 — this is a required retry, not polling.
+      On exit 3, re-run the exact same command until exit 0.
 
 4. After all waves: if `post_verify` is set, run it.
 
