@@ -13,6 +13,7 @@ Parse `$ARGUMENTS` for:
 - `--headless`: Skip clarifying questions (Step 2) — generate RFEs directly from the input
 - `--priority <value>`: Override default priority (Blocker, Critical, Major, Normal, Minor)
 - `--labels <comma-separated>`: Labels to apply to created RFEs
+- `--rfe-id <ID>`: Pre-assigned RFE ID. When provided, use this ID instead of calling `next_rfe_id.py` in Step 4. The placeholder file already exists.
 - Remaining arguments: the problem statement / idea text
 
 If `--headless` is present, skip Step 2 entirely and proceed directly from Step 1 to Step 3 using the provided input.
@@ -62,9 +63,9 @@ Key rules:
 
 ## Step 4: Write Artifacts
 
-For each RFE, allocate an ID first, then write the markdown body and set frontmatter.
+For each RFE, determine its ID, then write the markdown body and set frontmatter.
 
-Allocate IDs atomically (prevents collisions with parallel runs):
+If `--rfe-id` was provided, use that ID (the placeholder file already exists). Otherwise, allocate IDs atomically:
 
 ```bash
 python3 scripts/next_rfe_id.py <count>

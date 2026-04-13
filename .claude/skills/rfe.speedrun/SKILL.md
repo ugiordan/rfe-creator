@@ -51,13 +51,23 @@ When the user doesn't specify, use these defaults:
   priority: Major
 ```
 
-For each entry, invoke `/rfe.create` as an inline Skill:
+Count entries and pre-allocate all IDs upfront:
+
+```bash
+N=$(python3 -c "import yaml; print(len(yaml.safe_load(open('batch.yaml'))))")
+python3 scripts/next_rfe_id.py $N   # prints RFE-001 through RFE-<N>
+```
+
+For each entry, launch an Agent to invoke `/rfe.create`. Pass the pre-assigned ID so each Agent knows which ID to use:
 
 ```
-/rfe.create --headless [--priority <priority>] [--labels <labels>] <prompt>
+Agent for entry 1:  /rfe.create --headless --rfe-id RFE-001 [--priority <priority>] <prompt>
+Agent for entry 2:  /rfe.create --headless --rfe-id RFE-002 [--priority <priority>] <prompt>
+...
+Agent for entry N:  /rfe.create --headless --rfe-id RFE-<N> [--priority <priority>] <prompt>
 ```
 
-Collect all created RFE IDs from the output. **Never delete, rename, or re-create RFE task files during Phase 1** — quality issues are addressed in Phase 2 (Auto-fix). Each batch entry must produce exactly one RFE with a stable ID.
+Each entry is a single business need — `/rfe.create` must produce exactly one RFE per invocation. Wait for all N agents to complete. You must have exactly N RFE IDs — if fewer were created, retry the missing entries. **Never delete or re-create task files during Phase 1** — quality issues are addressed in Phase 2 (Auto-fix).
 
 **Mode B (Existing RFE)**: Skip Phase 1. The Jira key(s) from arguments become the processing list.
 
