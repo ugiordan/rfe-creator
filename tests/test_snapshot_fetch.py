@@ -11,9 +11,11 @@ import yaml
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from snapshot_fetch import (
+    cmd_fetch,
     compute_content_hash,
     diff_snapshots,
     load_snapshot_from_dir,
+    read_id_file,
     update_snapshot_hashes,
     write_id_file,
 )
@@ -475,3 +477,107 @@ class TestWriteIdFile:
         write_id_file(path, [])
         with open(path) as f:
             assert f.read() == ""
+
+
+class TestReprocess:
+    def test_reprocess_without_jql_copies_all_to_changed(self, tmp_path):
+        """--reprocess without --jql reuses prior IDs, all marked changed."""
+        ids_file = str(tmp_path / "all-ids.txt")
+        changed_file = str(tmp_path / "changed-ids.txt")
+        write_id_file(ids_file, ["RHAIRFE-1", "RHAIRFE-2", "RHAIRFE-3"])
+
+        import argparse
+        args = argparse.Namespace(
+            reprocess=True, jql=None, random=None,
+            ids_file=ids_file, changed_file=changed_file)
+        cmd_fetch(args)
+
+        assert read_id_file(changed_file) == [
+            "RHAIRFE-1", "RHAIRFE-2", "RHAIRFE-3"]
+
+    def test_reprocess_without_jql_fails_without_prior_ids(self, tmp_path):
+        """--reprocess with no prior IDs file exits with error."""
+        ids_file = str(tmp_path / "missing.txt")
+        changed_file = str(tmp_path / "changed-ids.txt")
+
+        import argparse
+        args = argparse.Namespace(
+            reprocess=True, jql=None, random=None,
+            ids_file=ids_file, changed_file=changed_file)
+        with pytest.raises(SystemExit) as exc_info:
+            cmd_fetch(args)
+        assert exc_info.value.code == 1
+
+    def test_reprocess_without_jql_preserves_ids_file(self, tmp_path):
+        """--reprocess does not modify the original IDs file."""
+        ids_file = str(tmp_path / "all-ids.txt")
+        changed_file = str(tmp_path / "changed-ids.txt")
+        write_id_file(ids_file, ["RHAIRFE-1", "RHAIRFE-2"])
+
+        import argparse
+        args = argparse.Namespace(
+            reprocess=True, jql=None, random=None,
+            ids_file=ids_file, changed_file=changed_file)
+        cmd_fetch(args)
+
+        assert read_id_file(ids_file) == ["RHAIRFE-1", "RHAIRFE-2"]
+
+
+class TestRandom:
+    """Tests for --random N with --reprocess --jql (random sampling from JQL)."""
+
+    def _make_current(self, keys):
+        """Build a fake fetch_all_issues return dict."""
+        return {k: {"content_hash": f"hash-{k}"} for k in keys}
+
+    def _run_fetch(self, tmp_path, current, random_n, monkeypatch):
+        """Run cmd_fetch with mocked Jira fetch, return (ids, changed)."""
+        import argparse
+        ids_file = str(tmp_path / "all-ids.txt")
+        changed_file = str(tmp_path / "changed-ids.txt")
+        snap_dir = str(tmp_path / "snapshots")
+
+        monkeypatch.setattr("snapshot_fetch.require_env",
+                            lambda: ("http://x", "u", "t"))
+        monkeypatch.setattr("snapshot_fetch.fetch_all_issues",
+                            lambda *a, **kw: current)
+        monkeypatch.setattr("snapshot_fetch.find_previous_snapshot",
+                            lambda: (None, None))
+        monkeypatch.setattr("snapshot_fetch.SNAPSHOT_DIR", snap_dir)
+
+        args = argparse.Namespace(
+            reprocess=True, jql="project = TEST", random=random_n,
+            limit=None, data_dir=None,
+            ids_file=ids_file, changed_file=changed_file)
+        cmd_fetch(args)
+        return read_id_file(ids_file), read_id_file(changed_file)
+
+    def test_random_samples_n_ids(self, tmp_path, monkeypatch):
+        """--random N picks N random IDs from JQL results."""
+        keys = [f"RHAIRFE-{i}" for i in range(1, 11)]
+        current = self._make_current(keys)
+
+        ids, changed = self._run_fetch(tmp_path, current, 3, monkeypatch)
+
+        assert len(ids) == 3
+        assert all(k in keys for k in ids)
+        # --reprocess marks all as changed
+        assert changed == ids
+
+    def test_random_exceeding_count_uses_all(self, tmp_path, monkeypatch):
+        """--random N >= fetched issues uses all with a warning."""
+        keys = ["RHAIRFE-1", "RHAIRFE-2"]
+        current = self._make_current(keys)
+
+        ids, changed = self._run_fetch(tmp_path, current, 10, monkeypatch)
+
+        assert sorted(ids) == sorted(keys)
+
+    def test_random_results_are_sorted(self, tmp_path, monkeypatch):
+        """--random output is sorted for deterministic downstream."""
+        keys = [f"RHAIRFE-{i}" for i in range(1, 21)]
+        current = self._make_current(keys)
+
+        ids, _ = self._run_fetch(tmp_path, current, 5, monkeypatch)
+
+        assert ids == sorted(ids)

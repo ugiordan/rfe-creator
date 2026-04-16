@@ -25,6 +25,7 @@ from collections import OrderedDict
 import glob
 import hashlib
 import os
+import random
 import sys
 import urllib.parse
 from datetime import datetime, timezone
@@ -236,6 +237,12 @@ def diff_snapshots(current_issues, previous_data):
     return changed, new
 
 
+def read_id_file(path):
+    """Read IDs from a file, one per line."""
+    with open(path, encoding="utf-8") as f:
+        return [line.strip() for line in f if line.strip()]
+
+
 def write_id_file(path, ids):
     """Write IDs to a file, one per line."""
     os.makedirs(os.path.dirname(path) or "tmp", exist_ok=True)
@@ -287,6 +294,27 @@ def update_snapshot_hashes(hashes, snapshot_dir=None, mark_processed=None):
 
 def cmd_fetch(args):
     """Fetch all issues, diff against previous snapshot, write ID files."""
+    reprocess = getattr(args, "reprocess", False)
+
+    # --reprocess without --jql: skip Jira, reuse prior IDs, all changed
+    if reprocess and not args.jql:
+        if not os.path.exists(args.ids_file):
+            print("Error: No prior IDs found. Run with --jql or "
+                  "explicit IDs first.", file=sys.stderr)
+            sys.exit(1)
+        all_ids = read_id_file(args.ids_file)
+        write_id_file(args.changed_file, all_ids)
+        print(f"TOTAL={len(all_ids)}")
+        print(f"CHANGED={len(all_ids)}")
+        print(f"NEW=0")
+        print(f"UNCHANGED=0")
+        return
+
+    if not args.jql:
+        print("Error: JQL query required (or use --reprocess)",
+              file=sys.stderr)
+        sys.exit(1)
+
     server, user, token = require_env()
     if not all([server, user, token]):
         print("Error: JIRA_SERVER, JIRA_USER, and JIRA_TOKEN required",
@@ -331,14 +359,27 @@ def cmd_fetch(args):
     # changed and new are already ordered lists from diff_snapshots
     changed_set = set(changed)
     new_set = set(new)
-    limit = args.limit or len(current)
 
-    # Select up to limit: changed first, then new, then unchanged
-    all_ids = (changed + new)[:limit]
-    if len(all_ids) < limit:
-        unchanged = [k for k in current
-                     if k not in changed_set and k not in new_set]
-        all_ids.extend(unchanged[:limit - len(all_ids)])
+    random_n = getattr(args, "random", None)
+    if random_n is not None:
+        # Random sampling from all fetched issues (for testing)
+        all_keys = list(current.keys())
+        if random_n >= len(all_keys):
+            print(f"Warning: --random {random_n} >= fetched "
+                  f"{len(all_keys)} issues, using all",
+                  file=sys.stderr)
+            all_ids = sorted(all_keys)
+        else:
+            all_ids = sorted(random.sample(all_keys, random_n))
+    else:
+        limit = args.limit or len(current)
+
+        # Select up to limit: changed first, then new, then unchanged
+        all_ids = (changed + new)[:limit]
+        if len(all_ids) < limit:
+            unchanged = [k for k in current
+                         if k not in changed_set and k not in new_set]
+            all_ids.extend(unchanged[:limit - len(all_ids)])
 
     # Build cumulative snapshot: previous entries + selected issues.
     # Only selected issues get their hashes recorded (or updated).
@@ -388,13 +429,14 @@ def cmd_fetch(args):
 
     # Write ID files for downstream scripts
     write_id_file(args.ids_file, all_ids)
-    write_id_file(args.changed_file, out_changed)
+    # --reprocess: treat all as changed so check_resume processes everything
+    changed_out = all_ids if reprocess else out_changed
+    write_id_file(args.changed_file, changed_out)
 
-    # Output counts only — IDs are in files
     print(f"TOTAL={len(all_ids)}")
-    print(f"CHANGED={len(out_changed)}")
+    print(f"CHANGED={len(changed_out)}")
     print(f"NEW={len(out_new)}")
-    print(f"UNCHANGED={len(all_ids) - len(out_changed) - len(out_new)}")
+    print(f"UNCHANGED={len(all_ids) - len(changed_out) - len(out_new)}")
 
 
 def main():
@@ -406,7 +448,8 @@ def main():
 
     fetch_p = sub.add_parser(
         "fetch", help="Fetch issues and diff against previous snapshot")
-    fetch_p.add_argument("jql", help="JQL query string")
+    fetch_p.add_argument("jql", nargs="?", default=None,
+                         help="JQL query string")
     fetch_p.add_argument("--limit", type=int, default=None,
                          help="Max number of changed keys to output")
     fetch_p.add_argument("--ids-file", required=True,
@@ -415,6 +458,12 @@ def main():
                          help="Output file for changed-only IDs")
     fetch_p.add_argument("--data-dir",
                          help="Local directory with previous run results")
+    fetch_p.add_argument("--reprocess", action="store_true",
+                         help="Skip Jira fetch, reuse prior IDs, "
+                         "mark all as changed")
+    fetch_p.add_argument("--random", type=int, default=None,
+                         help="With --reprocess: randomly sample N IDs "
+                         "from the prior set (for testing)")
 
     args = parser.parse_args()
     if args.command == "fetch":
